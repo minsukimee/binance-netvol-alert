@@ -6,7 +6,7 @@ from datetime import datetime
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
-GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
+GIST_TOKEN = os.environ["GIST_TOKEN"]
 GIST_ID = os.environ["GIST_ID"]
 GIST_FILENAME = "binance_netvol_state.json"
 
@@ -24,6 +24,9 @@ HOLD_MULTIPLIER = 5.0
 async def get_all_futures_symbols(session):
     url = "https://fapi.binance.com/fapi/v1/exchangeInfo"
     async with session.get(url) as resp:
+        if resp.status != 200:
+            print(f"바이낸스 API 오류: {resp.status}")
+            return []
         data = await resp.json()
 
     symbols = []
@@ -80,24 +83,26 @@ def calculate_current_4h_net_volume(klines_1m):
 async def load_state(session):
     url = f"https://api.github.com/gists/{GIST_ID}"
     headers = {
-        "Authorization": f"token {GITHUB_TOKEN}",
+        "Authorization": f"token {GIST_TOKEN}",
         "Accept": "application/vnd.github.v3+json",
     }
     async with session.get(url, headers=headers) as resp:
         if resp.status != 200:
+            print(f"Gist 로드 오류: {resp.status}")
             return {}
         data = await resp.json()
         content = data["files"].get(GIST_FILENAME, {}).get("content", "{}")
         try:
             return json.loads(content)
-        except Exception:
+        except Exception as e:
+            print(f"Gist 파싱 오류: {e}")
             return {}
 
 
 async def save_state(session, state):
     url = f"https://api.github.com/gists/{GIST_ID}"
     headers = {
-        "Authorization": f"token {GITHUB_TOKEN}",
+        "Authorization": f"token {GIST_TOKEN}",
         "Accept": "application/vnd.github.v3+json",
     }
     payload = {
@@ -108,6 +113,8 @@ async def save_state(session, state):
         }
     }
     async with session.patch(url, headers=headers, json=payload) as resp:
+        if resp.status not in [200, 201]:
+            print(f"Gist 저장 오류: {resp.status}")
         return resp.status
 
 
