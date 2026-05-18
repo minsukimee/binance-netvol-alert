@@ -24,10 +24,14 @@ HOLD_MULTIPLIER = 5.0
 async def get_all_futures_symbols(session):
     url = "https://fapi.binance.com/fapi/v1/exchangeInfo"
     async with session.get(url) as resp:
-        if resp.status != 200:
-            print(f"바이낸스 API 오류: {resp.status}")
-            return []
         data = await resp.json()
+        if resp.status != 200:
+            print(f"바이낸스 API 오류 (HTTP {resp.status}): {data}")
+            return []
+        
+        if "symbols" not in data:
+            print(f"바이낸스 응답 데이터에 'symbols' 키가 없습니다: {data}")
+            return []
 
     symbols = []
     for s in data["symbols"]:
